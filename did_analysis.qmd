@@ -1,0 +1,179 @@
+---
+title: "FAD Installation Impact on CPUE"
+format:
+   html:
+     self-contained: true
+     theme:
+       light: flatly
+       dark: darkly
+code-fold: true
+code-summary: "Show the code"
+editor: visual
+css: style.css
+toc: true
+toc_float: true
+---
+
+# Aim
+
+The following analysis aims to estimate the impact of FAD installation on the catch per unit effort (CPUE) of fishers in the Suai, Hera, and Atabae sites using Leopa site as a control comparison.
+
+# Method
+
+## Data used
+
+For each site, we divided the data into two timeframes: the time before the FADs were installed and the time after. The length of these timeframes was set based on how long the FADs had been in place at each site, as detailed in Table 2 of the manuscript. For example, at Atabae, where FADs were in the water for 581 days, we compared the catch rates from 581 days before they were installed to 581 days after. This same method was applied to the other sites, Hera and Suai, where the FADs were in place for 657 and 119 days, respectively.
+
+## Statistical analysis
+
+The analysis utilizes a difference-in-differences (DiD) approach to determine the impact of Fish Aggregating Device (FAD) installations on catch per unit effort (CPUE). DiD methodology operates by calculating the change in catch rates before and after the FAD installations at sites where FADs were introduced (treatment sites) and comparing it with the change in catch rates over the same period at Leopa, the site where no FADs were introduced (control site). This comparative analysis allows us to isolate and measure the specific effect of FAD installations on CPUE. In essence, DiD analysis works by subtracting the difference in catch rates at the control site (where we wouldn't expect to see an effect due to the intervention) from the difference in catch rates at the treatment sites. This method effectively controls for external factors that could affect catch rates across all sites, such as seasonal variations or overall trends in fish populations, ensuring that any observed effect can more confidently be attributed to the intervention itself.
+
+Bootstrap techniques are employed to assess the precision of our DiD estimates. By repeatedly sampling from our data and recalculating the DiD estimate, we generate a distribution of estimates from which confidence intervals are derived. These intervals provide a range within which we can be confident the true DiD estimate lies, thereby offering a measure of the reliability of our findings. In this analysis, we use 1000 bootstrap replicates to generate our confidence intervals.
+
+# Results
+
+The results, derived from 1000 bootstrap resamples, illustrate varied impacts of FAD installation on CPUE across the sites. Hera and SUai experienced a decrease in CPUE post-installation, as indicated by their median DiD estimates being negative (-0.43 and -0.5kg respectively). In contrast, Atabae showed a positive increase in catch rate of almost 1kg (+0.85kg).
+
+```{r message=FALSE, warning=FALSE, fig.height=5, fig.width=7, fig.cap="Density plots of the changes in catch per unit effort (CPUE) following the installation of Fish Aggregating Devices (FADs), compared to the control site, Leopa. Each plot depicts the distribution of the median CPUE changes derived from 1000 bootstrap resamples at Atabae, Hera, and Suai sites, with the median DiD estimate for each site denoted by the number adjacent to the peak of the density. The shaded area beneath each curve represents the 95% confidence interval for the estimates. A vertical dotted line at zero on the x-axis indicates the point of no change in CPUE, which serves as a baseline to evaluate the effect of FAD installation relative to the control site."}
+library(magrittr)
+library(ggplot2)
+library(ggdist)
+library(arrow)
+# LOAD FUNCTIONS AND DATA
+
+get_did <- function(df) {
+  diffs <-
+    df %>%
+    dplyr::group_by(group, period) %>%
+    dplyr::summarise(median_CPUE = median(CPUE, na.rm = TRUE)) %>%
+    tidyr::pivot_wider(names_from = period, values_from = median_CPUE) %>%
+    dplyr::mutate(difference = `after installation` - `before installation`) %>%
+    dplyr::ungroup()
+
+  did_estimate <- diff(diffs$difference)
+  return(did_estimate)
+}
+
+bootstrap_function <- function(df, replicates) {
+  bootstrap_estimates <- replicate(replicates, {
+    sample_data <-
+      df %>%
+      dplyr::group_by(group, period) %>%
+      dplyr::slice_sample(prop = 0.5)
+
+    medians_sample <- sample_data %>%
+      dplyr::group_by(group, period) %>%
+      dplyr::summarise(median_CPUE = median(CPUE, na.rm = TRUE), .groups = "drop")
+
+    diffs_sample <- medians_sample %>%
+      tidyr::pivot_wider(names_from = period, values_from = median_CPUE) %>%
+      dplyr::mutate(difference = `after installation` - `before installation`)
+
+    did_sample <- diff(diffs_sample$difference)
+  })
+
+  did_estimate <- get_did(df)
+
+  list(
+    did_estimate = did_estimate,
+    ci = quantile(bootstrap_estimates, c(0.025, 0.975)),
+    bootstrap_estimates = bootstrap_estimates
+  )
+}
+
+trips_clean <- arrow::read_parquet("trips_clean.parquet")
+
+
+stations <-
+  trips_clean %>%
+  dplyr::ungroup() %>%
+  dplyr::select(landing_id, group, landing_date, landing_station, CPUE) %>%
+  split(.$landing_station)
+
+suai_df <-
+  dplyr::bind_rows(stations$Suai, stations$`Leopa/Do Tasi`) %>%
+  dplyr::mutate(
+    period = dplyr::case_when(
+      landing_date >= "2020-10-01" & landing_date <= as.Date("2020-10-01") + 119 ~ "after installation",
+      landing_date >= as.Date("2020-10-01") - 119 & landing_date < "2020-10-01" ~ "before installation",
+      TRUE ~ "drop"
+    )
+  ) %>%
+  dplyr::filter(!period == "drop")
+
+hera_df <-
+  dplyr::bind_rows(stations$Hera, stations$`Leopa/Do Tasi`) %>%
+  dplyr::mutate(
+    period = dplyr::case_when(
+      landing_date >= "2020-10-01" & landing_date <= as.Date("2020-10-01") + 657 ~ "after installation",
+      landing_date >= as.Date("2020-10-01") - 657 & landing_date < "2020-10-01" ~ "before installation",
+      TRUE ~ "drop"
+    )
+  ) %>%
+  dplyr::filter(!period == "drop")
+
+atabae_df <-
+  dplyr::bind_rows(stations$Atabae, stations$`Leopa/Do Tasi`) %>%
+  dplyr::mutate(
+    period = dplyr::case_when(
+      landing_date >= "2020-10-01" & landing_date <= as.Date("2020-10-01") + 581 ~ "after installation",
+      landing_date >= as.Date("2020-10-01") - 581 & landing_date < "2020-10-01" ~ "before installation",
+      TRUE ~ "drop"
+    )
+  ) %>%
+  dplyr::filter(!period == "drop")
+
+res_list <-
+  list(Atabae = atabae_df, Hera = hera_df, Suai = suai_df) %>%
+  purrr::map(., ~ bootstrap_function(.x, 1000))
+
+estimates <-
+  dplyr::tibble(
+    Site = c(
+      rep("Suai", length(res_list$Suai$bootstrap_estimates)),
+      rep("Hera", length(res_list$Hera$bootstrap_estimates)),
+      rep("Atabae", length(res_list$Atabae$bootstrap_estimates))
+    ),
+    estimates = c(
+      res_list$Suai$bootstrap_estimates,
+      res_list$Hera$bootstrap_estimates,
+      res_list$Atabae$bootstrap_estimates
+    ),
+    did = c(
+      rep(res_list$Suai$did_estimate, length(res_list$Suai$bootstrap_estimates)),
+      rep(res_list$Hera$did_estimate, length(res_list$Hera$bootstrap_estimates)),
+      rep(res_list$Atabae$did_estimate, length(res_list$Atabae$bootstrap_estimates))
+    )
+  )
+
+estimates %>% 
+  dplyr::mutate(Site = dplyr::case_when(Site == "Suai" ~ "Suai\n(Covalima)",
+                                        Site == "Hera" ~ "Hera\n(Dili)",
+                                        Site == "Atabae" ~ "Atabae\n(Bobonaro)")) %>%
+  ggplot() +
+  theme_minimal() +
+  stat_halfeye(aes(x = estimates, fill = Site, color = Site),
+    fill_type = "segments", alpha = 0.5, size = 10
+  ) +
+  geom_vline(aes(xintercept = 0), color = "grey40", linetype = "dashed") +
+  geom_text(
+    mapping = aes(x = did, y = 0.6, label = paste0(round(did, 2), " kg"), color = Site),
+    size = 4, vjust = 1, show.legend = FALSE
+  ) +
+  facet_grid(Site ~ .) +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
+  scale_color_manual(values = c("#92374D", "#3FA7D6", "#878472")) +
+  scale_fill_manual(values = c("#92374D", "#3FA7D6", "#878472")) +
+  scale_x_continuous(n.breaks = 8) +
+  scale_y_continuous(n.breaks = 3) +
+  labs(
+    x = "Change in CPUE after FAD installation\nrelative to control site (kg)",
+    y = "Proportion of Samples",
+    color = "",
+    fill = ""
+  )
+```

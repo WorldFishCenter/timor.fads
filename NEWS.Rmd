@@ -1,0 +1,18 @@
+---
+title: "News and Notes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### `r Sys.time()`
+
+1.  Non è ancora chiaro se devo filtrare i dati del periodo "treatment" per il label FAD. Teoricamente si, il problema però è i trips etichettati come FAD sembrano essere veramente pochi, insufficienti per fare una analisi di confronto con il controllo.
+
+2.  Non è ancora chiaro se devo lavorare per landing stations o per coordinate geografiche. Il problema è che se lavoro per stazioni non posso stabilire a quale unità FAD riferirmi, dato che ogni stazione può avere molteplici FADs. Dunque, dovrei lavorare per coordinate associando le barche ai FAD. I questo caso la domanda che mi faccio è perdo informazione se procedo così?
+
+### `r Sys.time()`
+
+1.  Con la modifica dell'usare il quantile 90 piuttosto che la mediana il peso per pescato è aumentato molto rispetto a prima. Bisogna controllare che questa stima sia effettivamente più veritiera.
