@@ -1,3 +1,19 @@
-**A supply and demand intervention increased fish consumption among rural women: a randomized, controlled trial**
+# Code repository for: *A supply and demand intervention increased fish consumption among rural women: a randomized, controlled trial*
 
-Malnutrition is a critical public health issue in Timor-Leste, where nearly half of children under five suffer from stunting and diets are chronically low in nutrient-rich foods, including fish. We conducted a cluster-randomized, 2×2 factorial, parallel-arm controlled trial to evaluate the effects of nearshore fish-aggregating devices (FADs, a technology designed to increase pelagic fish catch rates), social behaviour change (SBC) interventions, and their combination, on household fish purchasing and consumption in inland villages of Timor-Leste. However, inland households exposed to both FADs and SBC were nearly twice as likely to purchase fish (PR: 1.90, 95% CI: 1.14–3.20, p<0.05) and women were over four times as likely to report fish consumption the previous day (PR: 4.17, 95% CI: 1.88–9.29, p<0.001), compared to controls. No significant effects were observed from FADs or SBC alone. These findings suggest that the combination of supply-side (FAD) and demand-side (SBC) interventions is necessary to improve dietary intake in nutritionally vulnerable, inland populations. These results underscore the importance of integrated food system approaches to address poor diet quality and reduce malnutrition risks in small island developing states. 
+This repository contains the analysis code used in the paper *“A supply and demand intervention increased fish consumption among rural women: a randomized, controlled trial”*.
+
+## Repository structure (key files)
+
+### Household survey analysis (Stata)
+- `code_HH_survey.do`  
+  Prepares the baseline–endline household survey analysis dataset (via merges), recodes treatment arms (FAD/SBC intensity), checks baseline balance/confounding, and runs the primary, secondary, and exploratory models (with village-level clustering / mixed-effects where specified).
+
+### CPUE difference-in-differences analysis (Quarto/R)
+- `did_analysis.qmd`  
+  Estimates the impact of FAD installation on catch per unit effort (CPUE) using a difference-in-differences design with Leopa as the control site. Defines “before” and “after installation” windows for Suai, Hera, and Atabae, bootstraps DiD estimates (1000 replicates), and produces the main plot and summary estimates.
+
+## Data referenced by the code
+- `trips_clean.parquet`  
+  Input dataset used by `did_analysis.qmd`.
+- `Dataset_primaryanalysisV3` (Stata dataset)  
+  Main analysis dataset used by `code_HH_survey.do` (created from earlier cleaning/merge steps referenced in comments).
